@@ -2,9 +2,16 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <omp.h>
 
 #define MAX_LEN 2500
 #define MUTP    0.1      // Mutation probability
+
+/*
+Se dice que las cadenas se generan de forma aleatoria, pero en informática no existe aleatoriedad. Se 
+generan numeros aleatorios calculando una seria lineal en base a un número "semilla", al ser en este caso siempre
+la misma "semilla", tendremos siempre las mismas cadenas para poder comparar tiempos.
+*/
 
 char **generate_data(int ns, int codlen) {
   char actg[]="ACTG";
@@ -63,7 +70,7 @@ void free_samples(char *samples[])
 void save_results(int ns, int codlen, int delta, int mindiff[], int maxdiff[], int nclose[]) {
   int i;
   FILE *fp; 
-  fp = fopen( "results.txt", "w");
+  fp = fopen( "resultsp1.txt", "w");
   fprintf(fp, "Samples:              %d\n", ns);
   fprintf(fp, "Code base length:     %d\n", codlen);
   fprintf(fp, "Closeness difference: %d\n\n", delta);
@@ -116,6 +123,11 @@ void process(int ns, char *samples[], int delta, int mindiff[], int maxdiff[], i
       mind_i,   // min difference between sample i and any other sample j>i
       maxd_i;   // max difference between sample i and any other sample j>i
 
+  /*
+  Ejercicio 1: Tomar tiempos
+  Ejercicio 2: Paralelizar estos bucles
+  */
+  
   for (i=0; i<ns; i++) {
     mindiff[i] = MAX_LEN+1;
     maxdiff[i] = 0;
@@ -126,16 +138,22 @@ void process(int ns, char *samples[], int delta, int mindiff[], int maxdiff[], i
     nclose_i = 0;
     mind_i = MAX_LEN+1;
     maxd_i = 0;
+    #pragma omp parallel for private(d) /*reduction(+:nclose_i)*/ schedule(runtime)
     for (j=i+1; j<ns; j++) {
       d = difference(samples[i],samples[j]);
       // Update min and max differences for sample i
-      if ( d < mind_i ) mind_i = d;
-      if ( d > maxd_i ) maxd_i = d;
+      //if ( d < mind_i )
+        //#pragma omp critical (min)
+        if ( d < mind_i ) mind_i = d;
+      //if ( d > maxd_i )
+        //#pragma omp critical (max) 
+        if ( d > maxd_i ) maxd_i = d;
       // Update min and max differences for sample j
       if ( d < mindiff[j] ) mindiff[j] = d;
       if ( d > maxdiff[j] ) maxdiff[j] = d;
       // Update close counts for samples i and j
       if ( d < delta ) {
+        #pragma omp atomic 
         nclose_i++;
         nclose[j]++;
       }
@@ -149,7 +167,8 @@ void process(int ns, char *samples[], int delta, int mindiff[], int maxdiff[], i
 }
 
 int main(int argc, char *argv[]) { 
-  int iarg,
+  int nhilos,
+      iarg,
       ns=200,       // Number of samples 
       codlen=900,   // Reference code length 
       delta,        // difference for closeness
@@ -157,8 +176,11 @@ int main(int argc, char *argv[]) {
       *maxdiff,
       *nclose;
   char **samples;
-  
+  double t1, t2;
   iarg = 1;
+  #pragma omp parallel
+      nhilos = omp_get_num_threads(); 
+      printf("Numero de hilos: %d\n", nhilos);
   if (iarg<argc) {
     ns = atoi(argv[iarg]);
     iarg++;
@@ -182,9 +204,10 @@ int main(int argc, char *argv[]) {
     free(nclose);
     return -1;
   }
-
+  t1 =omp_get_wtime();
   process(ns, samples, delta, mindiff, maxdiff, nclose);
-
+  t2 =omp_get_wtime();
+  printf("El tiempo de ejecución de la función process es %f\n", (t2-t1));
   save_results(ns, codlen, delta, mindiff, maxdiff, nclose);
 
   free_samples(samples);

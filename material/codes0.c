@@ -2,9 +2,16 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <omp.h>
 
 #define MAX_LEN 2500
 #define MUTP    0.1      // Mutation probability
+
+/*
+Se dice que las cadenas se generan de forma aleatoria, pero en informática no existe aleatoriedad. Se 
+generan numeros aleatorios calculando una seria lineal en base a un número "semilla", al ser en este caso siempre
+la misma "semilla", tendremos siempre las mismas cadenas para poder comparar tiempos.
+*/
 
 char **generate_data(int ns, int codlen) {
   char actg[]="ACTG";
@@ -116,6 +123,10 @@ void process(int ns, char *samples[], int delta, int mindiff[], int maxdiff[], i
       mind_i,   // min difference between sample i and any other sample j>i
       maxd_i;   // max difference between sample i and any other sample j>i
 
+  /*
+  Ejercicio 1: Tomar tiempos
+  Ejercicio 2: Paralelizar estos bucles
+  */
   for (i=0; i<ns; i++) {
     mindiff[i] = MAX_LEN+1;
     maxdiff[i] = 0;
@@ -157,6 +168,7 @@ int main(int argc, char *argv[]) {
       *maxdiff,
       *nclose;
   char **samples;
+  double t1, t2;
   
   iarg = 1;
   if (iarg<argc) {
@@ -182,9 +194,10 @@ int main(int argc, char *argv[]) {
     free(nclose);
     return -1;
   }
-
+  t1 =omp_get_wtime();
   process(ns, samples, delta, mindiff, maxdiff, nclose);
-
+  t2 =omp_get_wtime();
+  printf("El tiempo de ejecución de la función process es %f\n", (t2-t1));
   save_results(ns, codlen, delta, mindiff, maxdiff, nclose);
 
   free_samples(samples);
