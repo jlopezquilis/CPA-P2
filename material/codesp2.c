@@ -141,15 +141,30 @@ void process(int ns, char *samples[], int delta, int mindiff[], int maxdiff[], i
     for (j=i+1; j<ns; j++) {
       d = difference(samples[i],samples[j]);
       // Update min and max differences for sample i
-      if ( d < mind_i ) mind_i = d;
-      if ( d > maxd_i ) maxd_i = d;
+      if ( d < mind_i ) {
+        #pragma omp critical (c1)
+        if ( d < mind_i ) mind_i = d;
+      } 
+      if ( d > maxd_i ) {
+        #pragma omp critical (c2)
+        if ( d > maxd_i ) maxd_i = d;
+      }
       // Update min and max differences for sample j
-      if ( d < mindiff[j] ) mindiff[j] = d;
-      if ( d > maxdiff[j] ) maxdiff[j] = d;
+      if ( d < mindiff[j] ) {
+        #pragma omp critical (c3)
+        if ( d < mindiff[j] ) mindiff[j] = d;
+      }
+      if ( d > maxdiff[j] ) {
+        #pragma omp critical (c4)
+        if ( d > maxdiff[j] ) maxdiff[j] = d;
+      }
       // Update close counts for samples i and j
       if ( d < delta ) {
-        nclose_i++;
-        nclose[j]++;
+        #pragma omp critical (c5)
+        if ( d < delta ) {
+          nclose_i++;
+          nclose[j]++;
+        }
       }
     }
     // Update close counts for sample i
