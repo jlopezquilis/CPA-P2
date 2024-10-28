@@ -133,7 +133,7 @@ void process(int ns, char *samples[], int delta, int mindiff[], int maxdiff[], i
     nclose[i] = 0;
   }
 
-  #pragma omp parallel for private (j, d)
+  #pragma omp parallel for private (j, d, nclose_i, mind_i, maxd_i)
   for (i=0; i<ns; i++) {
     nclose_i = 0;
     mind_i = MAX_LEN+1;
@@ -141,30 +141,22 @@ void process(int ns, char *samples[], int delta, int mindiff[], int maxdiff[], i
     for (j=i+1; j<ns; j++) {
       d = difference(samples[i],samples[j]);
       // Update min and max differences for sample i
-      if ( d < mind_i ) {
-        #pragma omp critical (c1)
-        if ( d < mind_i ) mind_i = d;
-      } 
-      if ( d > maxd_i ) {
-        #pragma omp critical (c2)
-        if ( d > maxd_i ) maxd_i = d;
-      }
+      if ( d < mind_i ) mind_i = d;
+      if ( d > maxd_i ) maxd_i = d;
       // Update min and max differences for sample j
       if ( d < mindiff[j] ) {
-        #pragma omp critical (c3)
+        #pragma omp critical (c1)
         if ( d < mindiff[j] ) mindiff[j] = d;
       }
       if ( d > maxdiff[j] ) {
-        #pragma omp critical (c4)
+        #pragma omp critical (c2)
         if ( d > maxdiff[j] ) maxdiff[j] = d;
       }
       // Update close counts for samples i and j
       if ( d < delta ) {
-        #pragma omp critical (c5)
-        if ( d < delta ) {
           nclose_i++;
+          #pragma omp atomic
           nclose[j]++;
-        }
       }
     }
     // Update close counts for sample i
@@ -177,6 +169,7 @@ void process(int ns, char *samples[], int delta, int mindiff[], int maxdiff[], i
 
 int main(int argc, char *argv[]) { 
   int iarg,
+      nhilos,
       ns=200,       // Number of samples 
       codlen=900,   // Reference code length 
       delta,        // difference for closeness
@@ -187,6 +180,9 @@ int main(int argc, char *argv[]) {
   double t1, t2;
   
   iarg = 1;
+  #pragma omp parallel
+      nhilos = omp_get_num_threads(); 
+      printf("Numero de hilos: %d\n", nhilos);
   if (iarg<argc) {
     ns = atoi(argv[iarg]);
     iarg++;
