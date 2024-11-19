@@ -70,7 +70,7 @@ void free_samples(char *samples[])
 void save_results(int ns, int codlen, int delta, int mindiff[], int maxdiff[], int nclose[]) {
   int i;
   FILE *fp; 
-  fp = fopen( "results.txt", "w");
+  fp = fopen( "results0.txt", "w");
   fprintf(fp, "Samples:              %d\n", ns);
   fprintf(fp, "Code base length:     %d\n", codlen);
   fprintf(fp, "Closeness difference: %d\n\n", delta);
